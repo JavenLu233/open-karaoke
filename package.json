@@ -11,7 +11,7 @@
     "test": "node --experimental-strip-types --test tests/lrc.test.ts tests/track-info.test.ts"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.6.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

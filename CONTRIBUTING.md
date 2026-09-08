@@ -4,7 +4,7 @@
 
 ## 本地开发
 
-环境要求：Node.js `>=20.19.0`。
+环境要求：Node.js `>=22.6.0`。
 
 ```bash
 npm install
