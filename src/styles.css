@@ -1128,6 +1128,10 @@ h2 {
   border-top: 1px solid rgba(240, 228, 214, 0.08);
 }
 
+.asset-history-controls[hidden] {
+  display: none;
+}
+
 .history-page-size {
   display: inline-flex;
   align-items: center;
