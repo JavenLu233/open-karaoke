@@ -4,6 +4,16 @@ Open Karaoke 是一个基于 Vite + TypeScript 的本地卡拉 OK 视频制作�
 
 ![Open Karaoke cover](./public/open-karaoke-cover.png)
 
+在线体验：[GitHub Pages](https://javenlu233.github.io/open-karaoke/)
+
+## 页面预览
+
+下面是项目实际运行时的播放器预览与 Canvas 导出画面：
+
+| 播放器预览 | Canvas 导出画面 |
+| --- | --- |
+| ![播放器预览](./docs/screenshots/player-preview.png) | ![Canvas 导出画面](./docs/screenshots/canvas-export.png) |
+
 ## 功能
 
 - 音频播放、暂停、进度拖动
@@ -73,6 +83,8 @@ src/
 │  ├─ asset-history.ts       # 素材组历史记录与本地文件句柄
 │  ├─ media-recorder.ts      # Canvas 视频流与音频流合并录制
 │  └─ mp4-converter.ts       # WebM 回退转 MP4
-└─ ui/
-   └─ lyrics-view.ts         # 歌词列表渲染与滚动
+├─ ui/
+│  └─ lyrics-view.ts         # 歌词列表渲染与滚动
+└─ docs/
+   └─ screenshots/           # README 页面预览截图
 ```
