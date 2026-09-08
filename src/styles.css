@@ -959,6 +959,108 @@ h2 {
   letter-spacing: -0.04em;
 }
 
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.asset-help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.asset-help-button {
+  display: grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(202, 161, 109, 0.36);
+  border-radius: 50%;
+  color: var(--gold);
+  background: rgba(202, 161, 109, 0.04);
+  cursor: help;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.asset-help-button:hover,
+.asset-help:focus-within .asset-help-button {
+  border-color: rgba(202, 161, 109, 0.78);
+  background: rgba(202, 161, 109, 0.12);
+}
+
+.asset-help-button svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.55;
+}
+
+.asset-help-tooltip {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 12px);
+  left: 0;
+  display: grid;
+  width: min(300px, calc(100vw - 56px));
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(202, 161, 109, 0.3);
+  color: var(--muted);
+  background: #211c22;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+  font-size: 11px;
+  line-height: 1.55;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-5px);
+  transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
+  visibility: hidden;
+}
+
+.asset-help-tooltip strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.asset-help-tooltip a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  color: var(--gold);
+  text-decoration: none;
+}
+
+.asset-help-tooltip a:hover,
+.asset-help-tooltip a:focus-visible {
+  color: var(--ink);
+}
+
+.asset-help-tooltip a svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.asset-help:hover .asset-help-tooltip,
+.asset-help:focus-within .asset-help-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  visibility: visible;
+}
+
 .panel-badge {
   padding: 6px 8px;
   border: 1px solid rgba(202, 161, 109, 0.28);

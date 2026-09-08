@@ -27,6 +27,15 @@ Open Karaoke 是一个基于 Vite + TypeScript 的本地卡拉 OK 视频制作�
 - 支持 24 / 30 / 60 FPS 与 HD / Full HD / 2K 分辨率选择，优先生成 MP4，必要时使用 ffmpeg.wasm 转码
 - 历史素材列表支持分页，每页 5 / 10 / 20 条切换
 
+## 素材来源建议
+
+如果手边没有伴奏或歌词，可以从下面的网站搜索：
+
+- 伴奏： [5sing 音乐](https://5sing.kugou.com/index.html)
+- 歌词： [歌词网](https://ufanv.cn/lyric)
+
+请根据网站规则和版权要求使用、下载素材；Open Karaoke 只在浏览器本地处理你主动选择的文件。
+
 ## 开发
 
 ```bash
