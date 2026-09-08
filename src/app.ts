@@ -388,6 +388,9 @@ export class PlayerApp {
       audioName: sourceNames.audio.name,
       coverName: sourceNames.cover.name,
       lyricsName: sourceNames.lyrics.name,
+      songTitle: this.songTitle,
+      artistName: this.artistName,
+      lyricsOffsetMs: this.lyricsOffsetMs,
     };
 
     try {
@@ -401,8 +404,9 @@ export class PlayerApp {
 
   private async restoreAssetHistory(id: string): Promise<void> {
     try {
-      const source = await this.assetHistory.getAssets(id);
-      if (!source) throw new Error('找不到这条历史素材记录。');
+      const snapshot = await this.assetHistory.getSnapshot(id);
+      if (!snapshot) throw new Error('找不到这条历史素材记录。');
+      const { entry, source } = snapshot;
 
       const files = source.handles
         ? await Promise.all([
@@ -420,6 +424,18 @@ export class PlayerApp {
       this.loadCover(files[1]);
       await this.loadLyrics(files[2]);
       this.currentAssetHandles = source.handles ?? null;
+      if (entry.songTitle) {
+        this.songTitle = entry.songTitle;
+        this.songTitleManuallyEdited = true;
+      }
+      if (entry.artistName !== undefined) {
+        this.artistName = entry.artistName;
+        this.artistNameManuallyEdited = true;
+      }
+      this.syncTrackInfoUi();
+      if (typeof entry.lyricsOffsetMs === 'number' && Number.isFinite(entry.lyricsOffsetMs)) {
+        this.setLyricsOffset(entry.lyricsOffsetMs);
+      }
       this.updateAssetHistoryUi();
       this.setNotice('已从历史记录恢复三份素材。', 'success');
     } catch (error) {
@@ -475,6 +491,13 @@ export class PlayerApp {
       restore.dataset.historyAction = 'restore';
       restore.textContent = entry.label;
 
+      const state = document.createElement('span');
+      state.className = 'asset-history-state';
+      const offset = typeof entry.lyricsOffsetMs === 'number' && Number.isFinite(entry.lyricsOffsetMs)
+        ? `${entry.lyricsOffsetMs > 0 ? '+' : ''}${entry.lyricsOffsetMs} ms`
+        : '0 ms';
+      state.textContent = `${entry.artistName || '未识别歌手'} · 歌词偏移 ${offset}`;
+
       const files = document.createElement('span');
       files.className = 'asset-history-files';
       files.textContent = `${entry.audioName} · ${entry.coverName} · ${entry.lyricsName}`;
@@ -488,7 +511,7 @@ export class PlayerApp {
 
       const copy = document.createElement('span');
       copy.className = 'asset-history-copy';
-      copy.append(restore, files);
+      copy.append(restore, state, files);
       item.append(copy, remove);
       this.assetHistoryList.append(item);
     }

@@ -14,7 +14,16 @@
     <div class="app-shell">
       <header class="topbar">
         <a class="brand" href="./" aria-label="Open Karaoke 首页">
-          <span class="brand-mark" aria-hidden="true">◒</span>
+          <!-- Microphone icon adapted from Heroicons (MIT): https://github.com/tailwindlabs/heroicons -->
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 18.75a6 6 0 0 0 6-6v-1.5a6 6 0 0 0-12 0v1.5a6 6 0 0 0 6 6Zm0 0v3.75m-3.75 0h7.5M8.25 9.75v3a3.75 3.75 0 0 0 7.5 0v-3"
+              />
+            </svg>
+          </span>
           <span>OPEN<span class="brand-muted">/</span>KARAOKE</span>
         </a>
         <div class="topbar-meta">

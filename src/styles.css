@@ -80,6 +80,13 @@ label {
   line-height: 1;
 }
 
+.brand-mark svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+}
+
 .brand-muted {
   color: var(--gold);
   padding: 0 3px;

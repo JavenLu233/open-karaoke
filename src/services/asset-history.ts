@@ -29,11 +29,19 @@ export interface AssetHistoryEntry {
   audioName: string;
   coverName: string;
   lyricsName: string;
+  songTitle?: string;
+  artistName?: string;
+  lyricsOffsetMs?: number;
 }
 
 interface StoredAssetHistoryRecord extends AssetHistoryEntry {
   handles?: AssetHandleSet;
   files?: AssetFileSet;
+}
+
+export interface AssetHistorySnapshot {
+  entry: AssetHistoryEntry;
+  source: AssetSource;
 }
 
 interface FilePickerWindow extends Window {
@@ -121,10 +129,11 @@ export class AssetHistoryStore {
     writeHistoryMetadata([entry, ...entries].sort((a, b) => b.createdAt - a.createdAt));
   }
 
-  async getAssets(id: string): Promise<AssetSource | undefined> {
+  async getSnapshot(id: string): Promise<AssetHistorySnapshot | undefined> {
     const record = await withHistoryStore<StoredAssetHistoryRecord | undefined>('readonly', (store) => store.get(id));
     if (!record) return undefined;
-    return { handles: record.handles, files: record.files };
+    const { handles, files, ...entry } = record;
+    return { entry, source: { handles, files } };
   }
 
   async remove(id: string): Promise<void> {
