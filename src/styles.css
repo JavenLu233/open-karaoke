@@ -376,6 +376,8 @@ h1 em {
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Align the record's visual center with the lyrics block's center line. */
+  transform: translateY(clamp(0px, 1.25vw, 18px));
 }
 
 .disc-glow {
@@ -962,6 +964,7 @@ h2 {
 .upload-row {
   position: relative;
   min-height: 79px;
+  padding: 0 16px;
   display: grid;
   grid-template-columns: 22px 25px minmax(0, 1fr) 16px;
   align-items: center;
@@ -1488,6 +1491,7 @@ h2 {
 
   .disc-column {
     margin-bottom: 45px;
+    transform: none;
   }
 
   .lyrics-column {
