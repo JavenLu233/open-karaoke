@@ -1,6 +1,13 @@
 import { findActiveLyricIndex, parseLrc } from './lib/lrc';
 import { formatTime } from './lib/time';
-import { MediaRecorderService, RECORDING_FPS, getRecorderCapabilities } from './services/media-recorder';
+import {
+  DEFAULT_RECORDING_SETTINGS,
+  MediaRecorderService,
+  RECORDING_FPS_OPTIONS,
+  RECORDING_RESOLUTION_OPTIONS,
+  getRecorderCapabilities,
+  type RecordingSettings,
+} from './services/media-recorder';
 import { Mp4Converter } from './services/mp4-converter';
 import {
   AssetHistoryStore,
@@ -65,6 +72,8 @@ export class PlayerApp {
   private readonly resetOffsetBtn = getElement<HTMLButtonElement>('resetOffsetBtn');
   private readonly lyricsOffsetValue = getElement<HTMLElement>('lyricsOffsetValue');
   private readonly lyricsOffsetHint = getElement<HTMLElement>('lyricsOffsetHint');
+  private readonly recordingFpsSelect = getElement<HTMLSelectElement>('recordingFps');
+  private readonly recordingResolutionSelect = getElement<HTMLSelectElement>('recordingResolution');
   private readonly notice = getElement<HTMLElement>('notice');
   private readonly noticeText = getElement<HTMLElement>('noticeText');
   private readonly lyricsCount = getElement<HTMLElement>('lyricsCount');
@@ -88,6 +97,11 @@ export class PlayerApp {
   private readonly saveHistoryBtn = getElement<HTMLButtonElement>('saveHistoryBtn');
   private readonly assetHistoryList = getElement<HTMLElement>('assetHistoryList');
   private readonly assetHistoryHint = getElement<HTMLElement>('assetHistoryHint');
+  private readonly assetHistoryControls = getElement<HTMLElement>('assetHistoryControls');
+  private readonly historyPageSizeSelect = getElement<HTMLSelectElement>('historyPageSize');
+  private readonly historyPrevBtn = getElement<HTMLButtonElement>('historyPrevBtn');
+  private readonly historyNextBtn = getElement<HTMLButtonElement>('historyNextBtn');
+  private readonly historyPageStatus = getElement<HTMLElement>('historyPageStatus');
   private readonly songTitleInput = getElement<HTMLInputElement>('songTitleInput');
   private readonly artistNameInput = getElement<HTMLInputElement>('artistNameInput');
 
@@ -106,11 +120,17 @@ export class PlayerApp {
   private currentAssetHandles: AssetHandleSet | null = null;
   private currentAssetFiles: Partial<AssetFileSet> = {};
   private canvasScale = 1;
+  private canvasOffsetX = 0;
+  private canvasOffsetY = 0;
   private lyricsOffsetMs = this.restoreLyricsOffset();
+  private recordingSettings = this.restoreRecordingSettings();
+  private historyPage = 1;
+  private historyPageSize = 5;
 
   private static readonly lyricsOffsetStorageKey = 'vinyl-lyrics-video:lyrics-offset-ms';
   private static readonly lyricsOffsetStepMs = 100;
   private static readonly lyricsOffsetLimitMs = 5000;
+  private static readonly recordingSettingsStorageKey = 'open-karaoke:recording-settings';
 
   constructor() {
     const context = this.canvas.getContext('2d');
@@ -125,6 +145,7 @@ export class PlayerApp {
     this.bindEvents();
     window.addEventListener('resize', () => this.drawCanvasFrame());
     this.updateLyricsOffsetUi();
+    this.syncRecordingSettingsUi();
     this.updateRecorderAvailability();
     this.updateAssetHistoryUi();
     this.renderAssetHistory();
@@ -225,6 +246,24 @@ export class PlayerApp {
     this.resetOffsetBtn.addEventListener('click', () => {
       this.setLyricsOffset(0);
     });
+    this.recordingFpsSelect.addEventListener('change', () => {
+      this.updateRecordingSettings({ fps: Number.parseInt(this.recordingFpsSelect.value, 10) });
+    });
+    this.recordingResolutionSelect.addEventListener('change', () => {
+      const resolution = RECORDING_RESOLUTION_OPTIONS.find(
+        (option) => option.value === this.recordingResolutionSelect.value,
+      );
+      if (resolution) this.updateRecordingSettings(resolution);
+    });
+    this.historyPageSizeSelect.addEventListener('change', () => {
+      const pageSize = Number.parseInt(this.historyPageSizeSelect.value, 10);
+      if (![5, 10, 20].includes(pageSize)) return;
+      this.historyPageSize = pageSize;
+      this.historyPage = 1;
+      this.renderAssetHistory();
+    });
+    this.historyPrevBtn.addEventListener('click', () => this.changeHistoryPage(-1));
+    this.historyNextBtn.addEventListener('click', () => this.changeHistoryPage(1));
     window.addEventListener('beforeunload', () => this.releaseObjectUrls());
   }
 
@@ -395,6 +434,7 @@ export class PlayerApp {
 
     try {
       await this.assetHistory.save(entry, source);
+      this.historyPage = 1;
       this.renderAssetHistory();
       this.setNotice(`已保存素材组“${entry.label}”，下次可以从历史记录恢复。`, 'success');
     } catch (error) {
@@ -469,10 +509,20 @@ export class PlayerApp {
   }
 
   private renderAssetHistory(): void {
-    const entries = this.assetHistory.list();
+    const allEntries = this.assetHistory.list();
+    const pageCount = Math.max(1, Math.ceil(allEntries.length / this.historyPageSize));
+    this.historyPage = Math.max(1, Math.min(pageCount, this.historyPage));
+    const start = (this.historyPage - 1) * this.historyPageSize;
+    const entries = allEntries.slice(start, start + this.historyPageSize);
+
+    this.assetHistoryControls.hidden = allEntries.length <= 5;
+    this.historyPageSizeSelect.value = String(this.historyPageSize);
+    this.historyPageStatus.textContent = `${this.historyPage} / ${pageCount}`;
+    this.historyPrevBtn.disabled = this.historyPage <= 1;
+    this.historyNextBtn.disabled = this.historyPage >= pageCount;
     this.assetHistoryList.replaceChildren();
 
-    if (entries.length === 0) {
+    if (allEntries.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'asset-history-empty';
       empty.textContent = '还没有保存的素材组。';
@@ -582,6 +632,56 @@ export class PlayerApp {
     this.lyricsOffsetHint.textContent = hint;
   }
 
+  private restoreRecordingSettings(): RecordingSettings {
+    try {
+      const storedValue = localStorage.getItem(PlayerApp.recordingSettingsStorageKey);
+      if (storedValue) {
+        const parsed = JSON.parse(storedValue) as Partial<RecordingSettings>;
+        const fps = RECORDING_FPS_OPTIONS.find((option) => option === parsed.fps);
+        const resolution = RECORDING_RESOLUTION_OPTIONS.find(
+          (option) => option.width === parsed.width && option.height === parsed.height,
+        );
+        if (fps && resolution) return { fps, width: resolution.width, height: resolution.height };
+      }
+    } catch {
+      // localStorage may be unavailable in a restricted browser context.
+    }
+    return { ...DEFAULT_RECORDING_SETTINGS };
+  }
+
+  private syncRecordingSettingsUi(): void {
+    this.recordingFpsSelect.value = String(this.recordingSettings.fps);
+    this.recordingResolutionSelect.value = `${this.recordingSettings.width}x${this.recordingSettings.height}`;
+  }
+
+  private updateRecordingSettings(changes: Partial<RecordingSettings>): void {
+    if (this.recording) {
+      this.syncRecordingSettingsUi();
+      return;
+    }
+
+    const fps = RECORDING_FPS_OPTIONS.find((option) => option === changes.fps) ?? this.recordingSettings.fps;
+    const resolution = RECORDING_RESOLUTION_OPTIONS.find(
+      (option) => option.width === changes.width && option.height === changes.height,
+    ) ?? RECORDING_RESOLUTION_OPTIONS.find(
+      (option) => option.width === this.recordingSettings.width && option.height === this.recordingSettings.height,
+    ) ?? RECORDING_RESOLUTION_OPTIONS[1];
+    this.recordingSettings = { fps, width: resolution.width, height: resolution.height };
+    this.syncRecordingSettingsUi();
+    try {
+      localStorage.setItem(PlayerApp.recordingSettingsStorageKey, JSON.stringify(this.recordingSettings));
+    } catch {
+      // Keep the preference active for the current session when persistence is unavailable.
+    }
+    this.setNotice(`导出设置已更新：${fps} FPS · ${resolution.width} × ${resolution.height}`, 'neutral');
+  }
+
+  private changeHistoryPage(delta: number): void {
+    const pageCount = Math.max(1, Math.ceil(this.assetHistory.list().length / this.historyPageSize));
+    this.historyPage = Math.max(1, Math.min(pageCount, this.historyPage + delta));
+    this.renderAssetHistory();
+  }
+
   private startVisualLoop(): void {
     if (this.recording) {
       this.startRecordingVisualLoop();
@@ -621,7 +721,7 @@ export class PlayerApp {
     this.recordingIntervalId = window.setInterval(() => {
       this.updateDiscTransform();
       this.drawCanvasFrame();
-    }, 1000 / RECORDING_FPS);
+    }, 1000 / this.recordingSettings.fps);
   }
 
   private stopRecordingVisualLoop(): void {
@@ -643,15 +743,17 @@ export class PlayerApp {
     }
 
     this.recordBtn.disabled = true;
+    this.setRecordingSettingsDisabled(true);
+    this.recording = true;
     try {
       if (Number.isFinite(this.audio.duration) && this.audio.currentTime >= this.audio.duration) {
         this.audio.currentTime = 0;
       }
       this.clearDownload();
+      this.syncRecordingCanvasSize(this.playerStage.getBoundingClientRect());
       this.drawCanvasFrame();
       await this.audio.play();
-      this.recorder.start(this.audio, this.canvas);
-      this.recording = true;
+      this.recorder.start(this.audio, this.canvas, this.recordingSettings);
       this.recordBtn.classList.add('is-recording');
       this.recordBtnLabel.textContent = '停止录制';
       this.recordBtn.disabled = false;
@@ -662,9 +764,11 @@ export class PlayerApp {
       this.recording = false;
       this.stopRecordingVisualLoop();
       this.recorder.cancel();
+      this.restorePreviewCanvasSize();
       this.recordBtn.classList.remove('is-recording');
       this.recordBtnLabel.textContent = '开始录制';
       this.recordBtn.disabled = !this.recorderSupported || !this.audio.src;
+      this.setRecordingSettingsDisabled(false);
       const message = error instanceof Error ? error.message : '无法开始录制，请重试。';
       this.setNotice(message, 'error');
     }
@@ -678,7 +782,6 @@ export class PlayerApp {
     this.recordBtn.classList.remove('is-recording');
     this.recordBtnLabel.textContent = '开始录制';
     this.recordStatus.textContent = '正在生成视频…';
-    this.updateVisualLoop();
 
     try {
       const result = await this.recorder.stop();
@@ -709,7 +812,10 @@ export class PlayerApp {
       this.recordStatus.textContent = '录制失败';
       this.setNotice(error instanceof Error ? error.message : '视频生成失败，请重试。', 'error');
     } finally {
+      this.restorePreviewCanvasSize();
       this.recordBtn.disabled = !this.recorderSupported || !this.audio.src;
+      this.setRecordingSettingsDisabled(false);
+      this.updateVisualLoop();
     }
   }
 
@@ -775,8 +881,40 @@ export class PlayerApp {
     const width = Math.max(1, Math.round(stageRect.width * scale));
     const height = Math.max(1, Math.round(stageRect.height * scale));
     this.canvasScale = scale;
+    this.canvasOffsetX = 0;
+    this.canvasOffsetY = 0;
     if (this.canvas.width !== width) this.canvas.width = width;
     if (this.canvas.height !== height) this.canvas.height = height;
+  }
+
+  private syncRecordingCanvasSize(stageRect: DOMRect): void {
+    const { width, height } = this.recordingSettings;
+    const scale = Math.min(width / stageRect.width, height / stageRect.height);
+    this.canvasScale = scale;
+    this.canvasOffsetX = (width - stageRect.width * scale) / 2;
+    this.canvasOffsetY = (height - stageRect.height * scale) / 2;
+    if (this.canvas.width !== width) this.canvas.width = width;
+    if (this.canvas.height !== height) this.canvas.height = height;
+  }
+
+  private restorePreviewCanvasSize(): void {
+    const stageRect = this.playerStage.getBoundingClientRect();
+    if (stageRect.width <= 0 || stageRect.height <= 0) return;
+    this.syncCanvasSize(stageRect);
+    this.drawCanvasFrame();
+  }
+
+  private setRecordingSettingsDisabled(disabled: boolean): void {
+    this.recordingFpsSelect.disabled = disabled;
+    this.recordingResolutionSelect.disabled = disabled;
+  }
+
+  private canvasX(clientX: number, stageRect: DOMRect): number {
+    return (clientX - stageRect.left) * this.canvasScale + this.canvasOffsetX;
+  }
+
+  private canvasY(clientY: number, stageRect: DOMRect): number {
+    return (clientY - stageRect.top) * this.canvasScale + this.canvasOffsetY;
   }
 
   private drawCanvasBackground(ctx: CanvasRenderingContext2D, width: number, height: number): void {
@@ -817,14 +955,17 @@ export class PlayerApp {
     const rect = element.getBoundingClientRect();
     const styles = getComputedStyle(element);
     const fontSize = Number.parseFloat(styles.fontSize) * this.canvasScale;
-    const x = (rect.left - stageRect.left) * this.canvasScale;
-    const y = (rect.top - stageRect.top) * this.canvasScale;
+    const x = this.canvasX(rect.left, stageRect);
+    const centerY = this.canvasY(rect.top + rect.height / 2, stageRect);
     ctx.save();
     ctx.fillStyle = styles.color;
     ctx.font = `${styles.fontWeight} ${fontSize}px ${styles.fontFamily}`;
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(element.textContent?.trim() ?? '', x, y);
+    ctx.textBaseline = 'alphabetic';
+    const text = element.textContent?.trim() ?? '';
+    const metrics = ctx.measureText(text);
+    const glyphCenterOffset = (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2;
+    ctx.fillText(text, x, centerY + glyphCenterOffset);
     ctx.restore();
   }
 
@@ -837,8 +978,8 @@ export class PlayerApp {
     ctx.strokeStyle = styles.borderBottomColor;
     ctx.lineWidth = borderWidth;
     ctx.beginPath();
-    ctx.moveTo((rect.left - stageRect.left) * this.canvasScale, (rect.bottom - stageRect.top) * this.canvasScale);
-    ctx.lineTo((rect.right - stageRect.left) * this.canvasScale, (rect.bottom - stageRect.top) * this.canvasScale);
+    ctx.moveTo(this.canvasX(rect.left, stageRect), this.canvasY(rect.bottom, stageRect));
+    ctx.lineTo(this.canvasX(rect.right, stageRect), this.canvasY(rect.bottom, stageRect));
     ctx.stroke();
     ctx.restore();
   }
@@ -848,8 +989,8 @@ export class PlayerApp {
     ctx.save();
     ctx.fillStyle = getComputedStyle(element).backgroundColor;
     ctx.fillRect(
-      (rect.left - stageRect.left) * this.canvasScale,
-      (rect.top - stageRect.top) * this.canvasScale,
+      this.canvasX(rect.left, stageRect),
+      this.canvasY(rect.top, stageRect),
       rect.width * this.canvasScale,
       Math.max(1, rect.height * this.canvasScale),
     );
@@ -864,41 +1005,55 @@ export class PlayerApp {
 
     ctx.save();
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
+    ctx.textBaseline = 'alphabetic';
 
     ctx.fillStyle = titleStyles.color;
     ctx.font = `${titleStyles.fontWeight} ${Number.parseFloat(titleStyles.fontSize) * this.canvasScale}px ${titleStyles.fontFamily}`;
+    const titleMetrics = ctx.measureText(this.songTitle);
     ctx.fillText(
       this.songTitle,
-      (titleRect.left - stageRect.left + titleRect.width / 2) * this.canvasScale,
-      (titleRect.top - stageRect.top) * this.canvasScale,
+      this.canvasX(titleRect.left + titleRect.width / 2, stageRect),
+      this.canvasY(titleRect.top + titleRect.height / 2, stageRect)
+        + (titleMetrics.actualBoundingBoxAscent - titleMetrics.actualBoundingBoxDescent) / 2,
     );
 
     ctx.fillStyle = artistStyles.color;
     ctx.font = `${artistStyles.fontWeight} ${Number.parseFloat(artistStyles.fontSize) * this.canvasScale}px ${artistStyles.fontFamily}`;
+    const artistText = this.artistName || '未识别歌手';
+    const artistMetrics = ctx.measureText(artistText);
     ctx.fillText(
-      this.artistName || '未识别歌手',
-      (artistRect.left - stageRect.left + artistRect.width / 2) * this.canvasScale,
-      (artistRect.top - stageRect.top) * this.canvasScale,
+      artistText,
+      this.canvasX(artistRect.left + artistRect.width / 2, stageRect),
+      this.canvasY(artistRect.top + artistRect.height / 2, stageRect)
+        + (artistMetrics.actualBoundingBoxAscent - artistMetrics.actualBoundingBoxDescent) / 2,
     );
     ctx.restore();
   }
 
   private drawCanvasSettingsIcon(ctx: CanvasRenderingContext2D, stageRect: DOMRect): void {
     const rect = this.settingsBtn.getBoundingClientRect();
-    const centerX = (rect.left - stageRect.left + rect.width / 2) * this.canvasScale;
-    const centerY = (rect.top - stageRect.top + rect.height / 2) * this.canvasScale;
+    const centerX = this.canvasX(rect.left + rect.width / 2, stageRect);
+    const centerY = this.canvasY(rect.top + rect.height / 2, stageRect);
     const radius = (rect.width / 2) * this.canvasScale;
+    const active = this.settingsBtn.classList.contains('is-active');
+    const iconPath = new Path2D('M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z');
+    const innerPath = new Path2D('M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z');
     ctx.save();
-    ctx.strokeStyle = 'rgba(202, 161, 109, 0.36)';
+    ctx.strokeStyle = active ? 'rgba(199, 120, 96, 0.72)' : 'rgba(202, 161, 109, 0.36)';
     ctx.lineWidth = Math.max(1, this.canvasScale);
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = 'rgba(202, 161, 109, 0.7)';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius * 0.18, 0, Math.PI * 2);
-    ctx.fill();
+    const iconSize = 14 * this.canvasScale;
+    const iconScale = iconSize / 24;
+    ctx.translate(centerX - iconSize / 2, centerY - iconSize / 2);
+    ctx.scale(iconScale, iconScale);
+    ctx.strokeStyle = active ? 'rgba(199, 120, 96, 0.92)' : 'rgba(202, 161, 109, 0.72)';
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke(iconPath);
+    ctx.stroke(innerPath);
     ctx.restore();
   }
 
@@ -909,8 +1064,8 @@ export class PlayerApp {
     // so the recorded disc rotates at a constant diameter like the page preview.
     const layoutSize = Math.min(this.disc.offsetWidth, this.disc.offsetHeight);
     const size = layoutSize * this.canvasScale;
-    const centerX = (rect.left - stageRect.left + rect.width / 2) * this.canvasScale;
-    const centerY = (rect.top - stageRect.top + rect.height / 2) * this.canvasScale;
+    const centerX = this.canvasX(rect.left + rect.width / 2, stageRect);
+    const centerY = this.canvasY(rect.top + rect.height / 2, stageRect);
     const radius = size / 2;
     const angle = this.audio.currentTime * 0.72;
 
@@ -973,8 +1128,8 @@ export class PlayerApp {
     this.drawCanvasElementText(ctx, this.lyricsCount, stageRect);
 
     const viewportRect = this.lyricsViewport.getBoundingClientRect();
-    const viewportX = (viewportRect.left - stageRect.left) * this.canvasScale;
-    const viewportY = (viewportRect.top - stageRect.top) * this.canvasScale;
+    const viewportX = this.canvasX(viewportRect.left, stageRect);
+    const viewportY = this.canvasY(viewportRect.top, stageRect);
     const viewportWidth = viewportRect.width * this.canvasScale;
     const viewportHeight = viewportRect.height * this.canvasScale;
 
@@ -991,8 +1146,8 @@ export class PlayerApp {
       const styles = getComputedStyle(item);
       const fontSize = Number.parseFloat(styles.fontSize) * this.canvasScale;
       const paddingLeft = Number.parseFloat(styles.paddingLeft) * this.canvasScale;
-      const x = (rect.left - stageRect.left) * this.canvasScale + paddingLeft;
-      const lineCenterY = (rect.top - stageRect.top + rect.height / 2) * this.canvasScale;
+      const x = this.canvasX(rect.left, stageRect) + paddingLeft;
+      const lineCenterY = this.canvasY(rect.top + rect.height / 2, stageRect);
 
       ctx.fillStyle = styles.color;
       ctx.font = `${styles.fontWeight} ${fontSize}px ${styles.fontFamily}`;
@@ -1008,7 +1163,7 @@ export class PlayerApp {
         const barHeight = (Number.parseFloat(pseudo.height) || Number.parseFloat(styles.fontSize) * 1.4) * this.canvasScale;
         const barTop = lineCenterY - barHeight / 2;
         ctx.fillStyle = pseudo.backgroundColor || '#c77860';
-        ctx.fillRect((rect.left - stageRect.left) * this.canvasScale, barTop, barWidth, barHeight);
+        ctx.fillRect(this.canvasX(rect.left, stageRect), barTop, barWidth, barHeight);
       }
     });
     ctx.restore();
@@ -1031,8 +1186,8 @@ export class PlayerApp {
     const pulse = this.lyricsFooter.querySelector<HTMLElement>('.footer-pulse');
     if (pulse) {
       const pulseRect = pulse.getBoundingClientRect();
-      const centerX = (pulseRect.left - stageRect.left + pulseRect.width / 2) * this.canvasScale;
-      const centerY = (pulseRect.top - stageRect.top + pulseRect.height / 2) * this.canvasScale;
+      const centerX = this.canvasX(pulseRect.left + pulseRect.width / 2, stageRect);
+      const centerY = this.canvasY(pulseRect.top + pulseRect.height / 2, stageRect);
       ctx.fillStyle = getComputedStyle(pulse).backgroundColor;
       ctx.beginPath();
       ctx.arc(centerX, centerY, (pulseRect.width / 2) * this.canvasScale, 0, Math.PI * 2);

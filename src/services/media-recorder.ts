@@ -12,6 +12,26 @@ export type RecordingFormat = 'mp4' | 'webm';
 
 export const RECORDING_FPS = 24;
 
+export const RECORDING_FPS_OPTIONS = [24, 30, 60] as const;
+
+export const RECORDING_RESOLUTION_OPTIONS = [
+  { value: '1280x720', label: 'HD · 1280 × 720', width: 1280, height: 720 },
+  { value: '1920x1080', label: 'Full HD · 1920 × 1080', width: 1920, height: 1080 },
+  { value: '2560x1440', label: '2K · 2560 × 1440', width: 2560, height: 1440 },
+] as const;
+
+export interface RecordingSettings {
+  fps: number;
+  width: number;
+  height: number;
+}
+
+export const DEFAULT_RECORDING_SETTINGS: RecordingSettings = {
+  fps: RECORDING_FPS,
+  width: 1920,
+  height: 1080,
+};
+
 export interface RecordingResult {
   blob: Blob;
   format: RecordingFormat;
@@ -50,10 +70,10 @@ export class MediaRecorderService {
     return this.recorder?.state === 'recording';
   }
 
-  start(audioElement: HTMLAudioElement, canvas: HTMLCanvasElement): void {
+  start(audioElement: HTMLAudioElement, canvas: HTMLCanvasElement, settings: RecordingSettings): void {
     if (this.isRecording) throw new Error('录制已经在进行中。');
 
-    const canvasCapture = canvas.captureStream?.(RECORDING_FPS);
+    const canvasCapture = canvas.captureStream?.(settings.fps);
     const audioCapture = (audioElement as CapturableAudio).captureStream?.();
     if (!canvasCapture || !audioCapture) {
       throw new Error('当前浏览器不支持媒体流捕获，请使用最新版 Chrome 或 Edge。');
