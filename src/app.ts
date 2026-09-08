@@ -1185,10 +1185,11 @@ export class PlayerApp {
 
   private drawLyricsFade(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
     const fade = ctx.createLinearGradient(0, y, 0, y + height);
-    fade.addColorStop(0, 'rgba(17, 16, 20, 0.94)');
-    fade.addColorStop(0.12, 'rgba(17, 16, 20, 0)');
-    fade.addColorStop(0.88, 'rgba(17, 16, 20, 0)');
-    fade.addColorStop(1, 'rgba(17, 16, 20, 0.94)');
+    // Keep the edge fade subtle and wide so it reads as depth, not as two dark rectangles.
+    fade.addColorStop(0, 'rgba(17, 16, 20, 0.46)');
+    fade.addColorStop(0.2, 'rgba(17, 16, 20, 0)');
+    fade.addColorStop(0.8, 'rgba(17, 16, 20, 0)');
+    fade.addColorStop(1, 'rgba(17, 16, 20, 0.46)');
     ctx.fillStyle = fade;
     ctx.fillRect(x, y, width, height);
   }

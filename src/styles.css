@@ -547,7 +547,7 @@ h1 em {
   height: 330px;
   overflow: hidden;
   padding-top: 22px;
-  mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
 }
 
 .lyrics-track {
