@@ -971,6 +971,15 @@ h2 {
   align-items: center;
 }
 
+.asset-help::after {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: min(300px, calc(100vw - 56px));
+  height: 12px;
+  content: '';
+}
+
 .asset-help-button {
   display: grid;
   width: 21px;
