@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+
+# Local copyrighted demo assets; keep them available for local testing only.
+public/demo/yichang-youxi-yichangmeng*

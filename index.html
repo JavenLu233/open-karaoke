@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d0c0e" />
+    <meta
+      name="description"
+      content="Open Karaoke：将音乐、封面与 LRC 歌词组合为带黑胶动画的卡拉 OK 视频。"
+    />
+    <title>Open Karaoke</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Open Karaoke 首页">
+          <span class="brand-mark" aria-hidden="true">◒</span>
+          <span>OPEN<span class="brand-muted">/</span>KARAOKE</span>
+        </a>
+        <div class="topbar-meta">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span>本地工作台</span>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="intro-section" aria-labelledby="pageTitle">
+          <div>
+            <p class="eyebrow">MUSIC VIDEO MAKER <span>·</span> 01</p>
+            <h1 id="pageTitle">让每一句歌词，<em>转</em>起来。</h1>
+            <p class="intro-copy">
+              载入你的音乐、封面和 LRC 歌词，在浏览器里实时预览并录制一支黑胶歌词视频。
+            </p>
+          </div>
+          <div class="intro-note">
+            <span class="note-line"></span>
+            <span>建议使用 Chrome / Edge<br />录制需要 localhost 或 HTTPS</span>
+          </div>
+        </section>
+
+        <section class="studio-grid" aria-label="歌词视频工作台">
+          <section class="player-card" aria-label="播放器预览">
+            <div id="playerStage" class="player-stage canvas-preview">
+              <canvas id="recordingCanvas" width="1920" height="1080" aria-hidden="true"></canvas>
+              <div class="stage-grid" aria-hidden="true"></div>
+              <div id="stageTopline" class="stage-topline">
+                <span id="stageLabel">NOW PLAYING</span>
+                <div class="stage-actions">
+                  <span id="stageIndex" class="stage-index">A / SIDE 01</span>
+                  <button
+                    id="settingsBtn"
+                    class="settings-button"
+                    type="button"
+                    aria-label="打开歌词对齐设置"
+                    aria-controls="syncPanel"
+                    aria-expanded="false"
+                    title="歌词对齐设置"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="disc-column">
+                <div class="disc-glow" aria-hidden="true"></div>
+                <div id="disc" class="disc" aria-label="黑胶唱片封面">
+                  <div class="disc-grooves" aria-hidden="true"></div>
+                  <div id="coverPlaceholder" class="cover-placeholder">
+                    <span>上传<br />封面</span>
+                  </div>
+                  <img id="coverImage" alt="歌曲封面" />
+                  <div class="disc-center" aria-hidden="true">
+                    <span></span>
+                  </div>
+                </div>
+                <div class="disc-caption">
+                  <span id="captionRule" class="caption-rule"></span>
+                  <span id="playState">等待音频</span>
+                </div>
+                <div class="track-info" aria-label="歌曲信息">
+                  <strong id="trackTitle">未命名作品</strong>
+                  <span id="trackArtist">未识别歌手</span>
+                </div>
+              </div>
+
+              <div class="lyrics-column">
+                <div id="lyricsHeading" class="lyrics-heading">
+                  <span id="lyricsLabel">LYRICS</span>
+                  <span id="lyricsCount">0 LINES</span>
+                </div>
+                <div id="lyricsViewport" class="lyrics-viewport">
+                  <div id="lyricsTrack" class="lyrics-track">
+                    <ul id="lyricsList" class="lyrics-list" aria-live="polite">
+                      <li class="lyrics-empty">载入 LRC 歌词后<br />歌词会在这里同步出现</li>
+                    </ul>
+                  </div>
+                </div>
+                <div id="lyricsFooter" class="lyrics-footer" aria-hidden="true">
+                  <span class="footer-pulse"></span>
+                  <span id="lyricsFooterText">SYNCED TO AUDIO</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="syncPanel" class="sync-panel" hidden>
+              <div class="sync-panel-heading">
+                <div>
+                  <span class="panel-kicker">DEBUG / SYNC</span>
+                  <h3>歌词时间微调</h3>
+                </div>
+                <button id="resetOffsetBtn" class="sync-reset" type="button">重置</button>
+              </div>
+              <p class="sync-panel-copy">当音频与 LRC 总时长不一致时，用左右按钮调整歌词相对音频的显示时间。</p>
+              <div class="sync-tuning">
+                <button id="offsetAdvanceBtn" class="sync-adjust" type="button">← 提前 0.1s</button>
+                <div class="sync-offset" aria-live="polite">
+                  <span class="sync-offset-label">当前偏移</span>
+                  <strong id="lyricsOffsetValue">0 ms</strong>
+                  <small id="lyricsOffsetHint">使用 LRC 原始时间</small>
+                </div>
+                <button id="offsetDelayBtn" class="sync-adjust" type="button">延后 0.1s →</button>
+              </div>
+              <div class="sync-saved-note">调整会自动保存到当前浏览器</div>
+            </div>
+
+            <div class="player-controls">
+              <audio id="audioPlayer" controls preload="metadata"></audio>
+              <div class="control-toolbar">
+                <div class="time-readout" aria-label="播放进度">
+                  <span id="currentTime">00:00</span>
+                  <span class="time-divider">/</span>
+                  <span id="duration">00:00</span>
+                </div>
+                <div class="record-actions">
+                  <span id="recordStatus" class="record-status">未载入音频</span>
+                  <button id="recordBtn" class="record-button" type="button" disabled>
+                    <span class="record-icon" aria-hidden="true"></span>
+                    <span id="recordBtnLabel">开始录制</span>
+                  </button>
+                  <a id="downloadLink" class="download-link" hidden>下载 MP4</a>
+                  <a id="webmDownloadLink" class="download-link" hidden>下载 WebM</a>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <aside class="asset-panel" aria-labelledby="assetTitle">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">01 / INPUTS</p>
+                <h2 id="assetTitle">准备素材</h2>
+              </div>
+              <span class="panel-badge">LOCAL</span>
+            </div>
+
+            <div class="upload-list">
+              <label class="upload-row" for="audioFile">
+                <span class="upload-number">01</span>
+                <span class="upload-icon" aria-hidden="true">♫</span>
+                <span class="upload-copy">
+                  <strong>音乐文件</strong>
+                  <small id="audioFileName">选择 MP3 / OGG / WAV</small>
+                </span>
+                <span class="upload-arrow" aria-hidden="true">↗</span>
+                <input id="audioFile" type="file" accept="audio/mpeg,audio/ogg,audio/wav,audio/*" />
+              </label>
+
+              <label class="upload-row" for="coverFile">
+                <span class="upload-number">02</span>
+                <span class="upload-icon" aria-hidden="true">▧</span>
+                <span class="upload-copy">
+                  <strong>封面图片</strong>
+                  <small id="coverFileName">选择 JPG / PNG</small>
+                </span>
+                <span class="upload-arrow" aria-hidden="true">↗</span>
+                <input id="coverFile" type="file" accept="image/jpeg,image/png,image/webp,image/*" />
+              </label>
+
+              <label class="upload-row" for="lyricsFile">
+                <span class="upload-number">03</span>
+                <span class="upload-icon" aria-hidden="true">≡</span>
+                <span class="upload-copy">
+                  <strong>歌词文件</strong>
+                  <small id="lyricsFileName">选择 UTF-8 LRC</small>
+                </span>
+                <span class="upload-arrow" aria-hidden="true">↗</span>
+                <input id="lyricsFile" type="file" accept=".lrc,text/plain" />
+              </label>
+            </div>
+
+            <div class="track-meta" aria-labelledby="trackMetaTitle">
+              <div class="track-meta-heading">
+                <div>
+                  <p class="panel-kicker">TRACK INFO</p>
+                  <h3 id="trackMetaTitle">歌曲信息</h3>
+                </div>
+                <span class="panel-badge">EDITABLE</span>
+              </div>
+              <label class="track-field" for="songTitleInput">
+                <span>歌名</span>
+                <input id="songTitleInput" type="text" maxlength="80" placeholder="输入歌名" />
+              </label>
+              <label class="track-field" for="artistNameInput">
+                <span>歌手</span>
+                <input id="artistNameInput" type="text" maxlength="80" placeholder="输入歌手名" />
+              </label>
+              <p class="track-meta-hint">默认按“歌手 - 歌名”识别文件名；也会优先读取 LRC 的 ti / ar 信息。</p>
+            </div>
+
+            <div id="notice" class="notice" role="status" aria-live="polite">
+              <span class="notice-dot" aria-hidden="true"></span>
+              <span id="noticeText">演示素材载入中…</span>
+            </div>
+
+            <div class="workflow-guide">
+              <p class="panel-kicker">QUICK GUIDE</p>
+              <ol>
+                <li><span>1</span>载入三份素材</li>
+                <li><span>2</span>点击播放，检查歌词同步</li>
+                <li><span>3</span>点击录制并下载视频</li>
+              </ol>
+            </div>
+          </aside>
+        </section>
+      </main>
+
+      <footer class="app-footer">
+        <span>OPEN / KARAOKE</span>
+        <span>CLIENT-SIDE ONLY · YOUR FILES STAY IN THIS BROWSER</span>
+      </footer>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
