@@ -10,7 +10,9 @@ Open Karaoke 是一个基于 Vite + TypeScript 的本地卡拉 OK 视频制作�
 
 下面是项目实际运行时的播放器页面截图：
 
-![播放器页面预览](./docs/screenshots/player-preview.png)
+| 播放器页面 | 准备素材与历史记录 |
+| --- | --- |
+| ![播放器页面预览](./docs/screenshots/player-preview.png) | ![准备素材与历史记录](./docs/screenshots/asset-inputs.png) |
 
 页面中左侧是旋转唱片与歌曲信息，右侧是同步歌词；底部可以播放音频，设置按钮可以调整歌词时间轴、导出帧率和分辨率。
 
@@ -87,5 +89,6 @@ src/
 │  └─ lyrics-view.ts         # 歌词列表渲染与滚动
 └─ docs/
    └─ screenshots/
-      └─ player-preview.png  # README 页面预览截图
+      ├─ player-preview.png  # 播放器页面截图
+      └─ asset-inputs.png    # 准备素材页面截图
 ```
