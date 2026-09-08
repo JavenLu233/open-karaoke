@@ -2,6 +2,15 @@ import { findActiveLyricIndex, parseLrc } from './lib/lrc';
 import { formatTime } from './lib/time';
 import { MediaRecorderService, RECORDING_FPS, getRecorderCapabilities } from './services/media-recorder';
 import { Mp4Converter } from './services/mp4-converter';
+import {
+  AssetHistoryStore,
+  type AssetHandleSet,
+  type AssetFileSet,
+  type AssetHistoryEntry,
+  pickRememberedAssetHandles,
+  readRememberedAsset,
+  supportsRememberedAssets,
+} from './services/asset-history';
 import { inferTrackInfo, mergeTrackInfoFromLrc } from './lib/track-info';
 import type { LyricLine, NoticeTone } from './types';
 import { LyricsView } from './ui/lyrics-view';
@@ -10,6 +19,21 @@ function getElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
   if (!element) throw new Error(`找不到页面元素 #${id}`);
   return element as T;
+}
+
+type AssetKind = 'audio' | 'cover' | 'lyrics';
+
+function classifyAsset(file: File): AssetKind | undefined {
+  const lowerName = file.name.toLowerCase();
+  if (file.type.startsWith('audio/') || /\.(mp3|ogg|wav|m4a|aac|flac)$/.test(lowerName)) return 'audio';
+  if (file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/.test(lowerName)) return 'cover';
+  if (lowerName.endsWith('.lrc')) return 'lyrics';
+  return undefined;
+}
+
+function createHistoryId(): string {
+  if ('randomUUID' in crypto) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export class PlayerApp {
@@ -60,6 +84,10 @@ export class PlayerApp {
   private readonly audioFile = getElement<HTMLInputElement>('audioFile');
   private readonly coverFile = getElement<HTMLInputElement>('coverFile');
   private readonly lyricsFile = getElement<HTMLInputElement>('lyricsFile');
+  private readonly rememberAssetsBtn = getElement<HTMLButtonElement>('rememberAssetsBtn');
+  private readonly saveHistoryBtn = getElement<HTMLButtonElement>('saveHistoryBtn');
+  private readonly assetHistoryList = getElement<HTMLElement>('assetHistoryList');
+  private readonly assetHistoryHint = getElement<HTMLElement>('assetHistoryHint');
   private readonly songTitleInput = getElement<HTMLInputElement>('songTitleInput');
   private readonly artistNameInput = getElement<HTMLInputElement>('artistNameInput');
 
@@ -70,10 +98,13 @@ export class PlayerApp {
   private recording = false;
   private recorderSupported = false;
   private readonly downloadUrls = new Set<string>();
+  private readonly assetHistory = new AssetHistoryStore();
   private songTitle = '未命名作品';
   private artistName = '';
   private songTitleManuallyEdited = false;
   private artistNameManuallyEdited = false;
+  private currentAssetHandles: AssetHandleSet | null = null;
+  private currentAssetFiles: Partial<AssetFileSet> = {};
   private canvasScale = 1;
   private lyricsOffsetMs = this.restoreLyricsOffset();
 
@@ -95,6 +126,8 @@ export class PlayerApp {
     window.addEventListener('resize', () => this.drawCanvasFrame());
     this.updateLyricsOffsetUi();
     this.updateRecorderAvailability();
+    this.updateAssetHistoryUi();
+    this.renderAssetHistory();
     this.syncPlaybackUi();
     this.drawCanvasFrame();
     void this.loadDemoAssets();
@@ -159,6 +192,19 @@ export class PlayerApp {
       this.syncTrackInfoUi();
       this.drawCanvasFrame();
     });
+    this.rememberAssetsBtn.addEventListener('click', () => void this.importRememberedAssets());
+    this.saveHistoryBtn.addEventListener('click', () => void this.saveCurrentAssetHistory());
+    this.assetHistoryList.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement;
+      const item = target.closest<HTMLElement>('[data-history-id]');
+      const historyId = item?.dataset.historyId;
+      if (!historyId) return;
+      if (target.closest('[data-history-action="delete"]')) {
+        void this.deleteAssetHistory(historyId);
+      } else if (target.closest('[data-history-action="restore"]')) {
+        void this.restoreAssetHistory(historyId);
+      }
+    });
     this.recordBtn.addEventListener('click', () => {
       if (this.recording) void this.stopRecording();
       else void this.startRecording();
@@ -194,6 +240,9 @@ export class PlayerApp {
   }
 
   private loadAudio(file: File): void {
+    this.currentAssetHandles = null;
+    this.currentAssetFiles = { ...this.currentAssetFiles, audio: file };
+    this.updateAssetHistoryUi();
     this.revokePreviousUrl('audio');
     const url = URL.createObjectURL(file);
     this.objectUrls.add(url);
@@ -214,6 +263,9 @@ export class PlayerApp {
   }
 
   private loadCover(file: File): void {
+    this.currentAssetHandles = null;
+    this.currentAssetFiles = { ...this.currentAssetFiles, cover: file };
+    this.updateAssetHistoryUi();
     this.revokePreviousUrl('cover');
     const url = URL.createObjectURL(file);
     this.objectUrls.add(url);
@@ -228,6 +280,9 @@ export class PlayerApp {
   }
 
   private async loadLyrics(file: File): Promise<void> {
+    this.currentAssetHandles = null;
+    this.currentAssetFiles = { ...this.currentAssetFiles, lyrics: file };
+    this.updateAssetHistoryUi();
     try {
       const parsed = parseLrc(await file.text());
       this.lyrics = parsed.lines;
@@ -255,6 +310,8 @@ export class PlayerApp {
 
   private async loadDemoAssets(): Promise<void> {
     try {
+      this.currentAssetFiles = {};
+      this.currentAssetHandles = null;
       const [audioResponse, lyricsResponse, coverResponse] = await Promise.all([
         fetch(this.getPublicAssetUrl('auld-lang-syne.ogg')),
         fetch(this.getPublicAssetUrl('auld-lang-syne.lrc')),
@@ -275,6 +332,165 @@ export class PlayerApp {
       this.setNotice('已自动载入公版演示素材，点击播放查看同步效果。', 'success');
     } catch {
       this.setNotice('演示素材载入失败，你仍可以通过右侧选择自己的文件。', 'neutral');
+    }
+  }
+
+  private async importRememberedAssets(): Promise<void> {
+    try {
+      const handles = await pickRememberedAssetHandles();
+      const files = await Promise.all(handles.map(async (handle) => ({ handle, file: await handle.getFile() })));
+      const selected = new Map<AssetKind, { handle: (typeof handles)[number]; file: File }>();
+
+      for (const item of files) {
+        const kind = classifyAsset(item.file);
+        if (kind && !selected.has(kind)) selected.set(kind, item);
+      }
+
+      const audio = selected.get('audio');
+      const cover = selected.get('cover');
+      const lyrics = selected.get('lyrics');
+      if (!audio || !cover || !lyrics) {
+        throw new Error('请在同一次选择中包含一个音频、一个封面图片和一个 LRC 文件。');
+      }
+
+      this.currentAssetFiles = {};
+      this.loadAudio(audio.file);
+      this.loadCover(cover.file);
+      await this.loadLyrics(lyrics.file);
+      this.currentAssetHandles = {
+        audio: audio.handle,
+        cover: cover.handle,
+        lyrics: lyrics.handle,
+      };
+      this.updateAssetHistoryUi();
+      this.setNotice('三份素材已载入，可点击“保存当前素材组”记住它们。', 'success');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      this.setNotice(error instanceof Error ? error.message : '素材导入失败，请重试。', 'error');
+    }
+  }
+
+  private async saveCurrentAssetHistory(): Promise<void> {
+    const files = this.getCompleteAssetFiles();
+    if (!this.currentAssetHandles && !files) {
+      this.setNotice('请先载入完整的音频、封面和 LRC 文件。', 'neutral');
+      return;
+    }
+
+    const source = this.currentAssetHandles ? { handles: this.currentAssetHandles } : { files };
+    const sourceNames = this.currentAssetHandles ?? files;
+    if (!sourceNames) return;
+
+    const entry: AssetHistoryEntry = {
+      id: createHistoryId(),
+      label: this.songTitle || '未命名素材组',
+      createdAt: Date.now(),
+      audioName: sourceNames.audio.name,
+      coverName: sourceNames.cover.name,
+      lyricsName: sourceNames.lyrics.name,
+    };
+
+    try {
+      await this.assetHistory.save(entry, source);
+      this.renderAssetHistory();
+      this.setNotice(`已保存素材组“${entry.label}”，下次可以从历史记录恢复。`, 'success');
+    } catch (error) {
+      this.setNotice(error instanceof Error ? error.message : '素材组保存失败，请重试。', 'error');
+    }
+  }
+
+  private async restoreAssetHistory(id: string): Promise<void> {
+    try {
+      const source = await this.assetHistory.getAssets(id);
+      if (!source) throw new Error('找不到这条历史素材记录。');
+
+      const files = source.handles
+        ? await Promise.all([
+            readRememberedAsset(source.handles.audio),
+            readRememberedAsset(source.handles.cover),
+            readRememberedAsset(source.handles.lyrics),
+          ])
+        : source.files
+          ? [source.files.audio, source.files.cover, source.files.lyrics]
+          : undefined;
+      if (!files) throw new Error('这条历史记录没有可恢复的文件。');
+
+      this.currentAssetFiles = {};
+      this.loadAudio(files[0]);
+      this.loadCover(files[1]);
+      await this.loadLyrics(files[2]);
+      this.currentAssetHandles = source.handles ?? null;
+      this.updateAssetHistoryUi();
+      this.setNotice('已从历史记录恢复三份素材。', 'success');
+    } catch (error) {
+      this.setNotice(error instanceof Error ? error.message : '历史素材恢复失败，请重新选择文件。', 'error');
+    }
+  }
+
+  private async deleteAssetHistory(id: string): Promise<void> {
+    try {
+      await this.assetHistory.remove(id);
+      this.renderAssetHistory();
+      this.setNotice('历史素材组已删除。', 'neutral');
+    } catch (error) {
+      this.setNotice(error instanceof Error ? error.message : '历史记录删除失败，请重试。', 'error');
+    }
+  }
+
+  private updateAssetHistoryUi(): void {
+    const supported = supportsRememberedAssets();
+    this.rememberAssetsBtn.disabled = !supported;
+    this.saveHistoryBtn.disabled = !supported || (!this.currentAssetHandles && !this.getCompleteAssetFiles());
+    this.assetHistoryHint.textContent = supported
+      ? '列表保存在当前浏览器；记忆导入保存文件句柄，普通导入保存本地副本。'
+      : '当前浏览器不支持记忆文件句柄，请使用最新版 Chrome / Edge。';
+  }
+
+  private getCompleteAssetFiles(): AssetFileSet | undefined {
+    const { audio, cover, lyrics } = this.currentAssetFiles;
+    if (!audio || !cover || !lyrics) return undefined;
+    return { audio, cover, lyrics };
+  }
+
+  private renderAssetHistory(): void {
+    const entries = this.assetHistory.list();
+    this.assetHistoryList.replaceChildren();
+
+    if (entries.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'asset-history-empty';
+      empty.textContent = '还没有保存的素材组。';
+      this.assetHistoryList.append(empty);
+      return;
+    }
+
+    for (const entry of entries) {
+      const item = document.createElement('article');
+      item.className = 'asset-history-item';
+      item.dataset.historyId = entry.id;
+
+      const restore = document.createElement('button');
+      restore.type = 'button';
+      restore.className = 'asset-history-restore';
+      restore.dataset.historyAction = 'restore';
+      restore.textContent = entry.label;
+
+      const files = document.createElement('span');
+      files.className = 'asset-history-files';
+      files.textContent = `${entry.audioName} · ${entry.coverName} · ${entry.lyricsName}`;
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'asset-history-delete';
+      remove.dataset.historyAction = 'delete';
+      remove.setAttribute('aria-label', `删除历史素材组 ${entry.label}`);
+      remove.textContent = '×';
+
+      const copy = document.createElement('span');
+      copy.className = 'asset-history-copy';
+      copy.append(restore, files);
+      item.append(copy, remove);
+      this.assetHistoryList.append(item);
     }
   }
 

@@ -210,6 +210,22 @@
               <p class="track-meta-hint">默认按“歌手 - 歌名”识别文件名；也会优先读取 LRC 的 ti / ar 信息。</p>
             </div>
 
+            <div class="asset-history" aria-labelledby="assetHistoryTitle">
+              <div class="asset-history-heading">
+                <div>
+                  <p class="panel-kicker">HISTORY</p>
+                  <h3 id="assetHistoryTitle">素材记录</h3>
+                </div>
+                <span class="panel-badge">LOCAL</span>
+              </div>
+              <div class="asset-history-actions">
+                <button id="rememberAssetsBtn" class="history-button history-button-primary" type="button">选择并记忆素材</button>
+                <button id="saveHistoryBtn" class="history-button" type="button" disabled>保存当前素材组</button>
+              </div>
+              <p id="assetHistoryHint" class="asset-history-hint"></p>
+              <div id="assetHistoryList" class="asset-history-list" aria-live="polite"></div>
+            </div>
+
             <div id="notice" class="notice" role="status" aria-live="polite">
               <span class="notice-dot" aria-hidden="true"></span>
               <span id="noticeText">演示素材载入中…</span>
