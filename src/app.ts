@@ -256,9 +256,9 @@ export class PlayerApp {
   private async loadDemoAssets(): Promise<void> {
     try {
       const [audioResponse, lyricsResponse, coverResponse] = await Promise.all([
-        fetch('/demo/auld-lang-syne.ogg'),
-        fetch('/demo/auld-lang-syne.lrc'),
-        fetch('/demo/auld-lang-syne-cover.png'),
+        fetch(this.getPublicAssetUrl('auld-lang-syne.ogg')),
+        fetch(this.getPublicAssetUrl('auld-lang-syne.lrc')),
+        fetch(this.getPublicAssetUrl('auld-lang-syne-cover.png')),
       ]);
       if (!audioResponse.ok || !lyricsResponse.ok || !coverResponse.ok) {
         throw new Error('演示素材不存在');
@@ -288,6 +288,10 @@ export class PlayerApp {
     this.artistNameInput.value = this.artistName;
     this.trackTitle.textContent = this.songTitle;
     this.trackArtist.textContent = this.artistName || '未识别歌手';
+  }
+
+  private getPublicAssetUrl(fileName: string): string {
+    return `${import.meta.env.BASE_URL}demo/${fileName}`;
   }
 
   private syncLyrics(): void {

@@ -29,6 +29,14 @@ npm run dev
 3. 如果文件名只有一个主体，作为歌名；`伴奏`、`纯音乐`、`instrumental` 等后缀会被移除。
 4. 识别结果可以在页面的“歌曲信息”区域手动修改，修改后的值优先使用。
 
+## GitHub Pages
+
+`main` 分支的每次推送都会触发 GitHub Actions 构建并发布到 GitHub Pages：
+
+<https://javenlu233.github.io/open-karaoke/>
+
+录制功能仍需要在支持 `captureStream()` 的 Chrome / Edge 中使用；GitHub Pages 已满足 HTTPS 要求。
+
 ## 校验
 
 ```bash
