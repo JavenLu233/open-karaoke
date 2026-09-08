@@ -28,6 +28,17 @@ function getElement<T extends HTMLElement>(id: string): T {
   return element as T;
 }
 
+function createSvgIcon(pathData: string): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', pathData);
+  svg.append(path);
+  return svg;
+}
+
 type AssetKind = 'audio' | 'cover' | 'lyrics';
 
 function classifyAsset(file: File): AssetKind | undefined {
@@ -557,7 +568,7 @@ export class PlayerApp {
       remove.className = 'asset-history-delete';
       remove.dataset.historyAction = 'delete';
       remove.setAttribute('aria-label', `删除历史素材组 ${entry.label}`);
-      remove.textContent = '×';
+      remove.append(createSvgIcon('M6 18 18 6M6 6l12 12'));
 
       const copy = document.createElement('span');
       copy.className = 'asset-history-copy';
@@ -1188,7 +1199,7 @@ export class PlayerApp {
       const pulseRect = pulse.getBoundingClientRect();
       const centerX = this.canvasX(pulseRect.left + pulseRect.width / 2, stageRect);
       const centerY = this.canvasY(pulseRect.top + pulseRect.height / 2, stageRect);
-      ctx.fillStyle = getComputedStyle(pulse).backgroundColor;
+      ctx.fillStyle = getComputedStyle(pulse).color;
       ctx.beginPath();
       ctx.arc(centerX, centerY, (pulseRect.width / 2) * this.canvasScale, 0, Math.PI * 2);
       ctx.fill();

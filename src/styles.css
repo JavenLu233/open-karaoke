@@ -117,12 +117,22 @@ label {
 .live-dot,
 .footer-pulse,
 .notice-dot {
-  width: 6px;
-  height: 6px;
-  display: inline-block;
-  border-radius: 50%;
-  background: var(--coral);
-  box-shadow: 0 0 0 4px rgba(199, 120, 96, 0.12);
+  width: 8px;
+  height: 8px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--coral);
+}
+
+.live-dot svg,
+.footer-pulse svg,
+.notice-dot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
 }
 
 .workspace {
@@ -596,10 +606,9 @@ h1 em {
 }
 
 .footer-pulse {
-  width: 5px;
-  height: 5px;
-  background: var(--gold);
-  box-shadow: none;
+  width: 7px;
+  height: 7px;
+  color: var(--gold);
 }
 
 .player-controls {
@@ -662,6 +671,9 @@ h1 em {
 }
 
 .sync-adjust {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
   min-height: 36px;
   padding: 0 12px;
   border: 1px solid rgba(202, 161, 109, 0.34);
@@ -675,7 +687,16 @@ h1 em {
   transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
 }
 
+.sync-adjust svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
 .sync-adjust:last-child {
+  justify-content: flex-end;
   text-align: right;
 }
 
@@ -870,18 +891,29 @@ audio {
 }
 
 .record-icon {
-  width: 8px;
-  height: 8px;
-  display: inline-block;
-  border-radius: 50%;
-  background: var(--coral);
-  box-shadow: 0 0 0 4px rgba(199, 120, 96, 0.12);
+  width: 10px;
+  height: 10px;
+  display: block;
+  flex: 0 0 auto;
+  fill: var(--coral);
+  filter: drop-shadow(0 0 0.5px rgba(199, 120, 96, 0.7));
+}
+
+.record-icon .record-stop {
+  display: none;
+  fill: var(--ink);
 }
 
 .is-recording .record-icon {
-  border-radius: 1px;
-  background: var(--ink);
-  box-shadow: none;
+  filter: none;
+}
+
+.is-recording .record-icon .record-ready {
+  display: none;
+}
+
+.is-recording .record-icon .record-stop {
+  display: block;
 }
 
 .download-link {
@@ -1138,6 +1170,16 @@ h2 {
   transition: border-color 180ms ease, background 180ms ease, opacity 180ms ease;
 }
 
+.history-pagination button svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .history-pagination button:hover:not(:disabled) {
   border-color: var(--gold);
   background: rgba(202, 161, 109, 0.12);
@@ -1201,9 +1243,19 @@ h2 {
   color: var(--subtle);
   background: transparent;
   cursor: pointer;
-  font-size: 18px;
   line-height: 1;
   transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.asset-history-delete svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: auto;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .asset-history-delete:hover {
@@ -1220,9 +1272,21 @@ h2 {
 }
 
 .upload-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
   color: var(--gold);
-  font-size: 21px;
-  line-height: 1;
+}
+
+.upload-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .upload-copy {
@@ -1248,8 +1312,21 @@ h2 {
 }
 
 .upload-arrow {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
   color: var(--gold);
-  font-size: 17px;
+}
+
+.upload-arrow svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .notice {
@@ -1277,16 +1354,15 @@ h2 {
 .notice-dot {
   flex: 0 0 auto;
   margin-top: 5px;
-  background: var(--subtle);
-  box-shadow: none;
+  color: var(--subtle);
 }
 
 [data-tone='success'] .notice-dot {
-  background: var(--gold);
+  color: var(--gold);
 }
 
 [data-tone='error'] .notice-dot {
-  background: var(--coral);
+  color: var(--coral);
 }
 
 .workflow-guide {
