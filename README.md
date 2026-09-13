@@ -24,7 +24,7 @@ Open Karaoke 是一个基于 Vite + React + TypeScript 的本地卡拉 OK 视频
 - 从文件名或 LRC `ti/ar` 元数据识别歌名与歌手名，并支持手动修改
 - 支持保存、恢复和删除本地素材组历史记录
 - 歌词时间偏移调试，可保存到 `localStorage`
-- 支持 24 / 30 / 60 FPS 与 HD / Full HD / 2K 分辨率选择，优先生成 MP4，必要时使用 ffmpeg.wasm 转码
+- 支持 24 / 30 / 60 FPS（默认 60）与 HD / Full HD / 2K 分辨率选择，优先生成 MP4，必要时使用 ffmpeg.wasm 转码
 - 历史素材列表支持分页，每页 5 / 10 / 20 条切换
 
 ## 素材来源建议

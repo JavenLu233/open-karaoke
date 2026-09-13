@@ -24,7 +24,8 @@ import type { LyricLine, NoticeTone } from '../types';
 import { drawCanvasFrame, type CanvasElements } from '../canvas/canvas-renderer';
 
 const LYRICS_OFFSET_KEY = 'vinyl-lyrics-video:lyrics-offset-ms';
-const RECORDING_SETTINGS_KEY = 'open-karaoke:recording-settings';
+// v2 intentionally resets the old 24 FPS preference so the new default takes effect.
+const RECORDING_SETTINGS_KEY = 'open-karaoke:recording-settings:v2';
 const LYRICS_OFFSET_STEP = 100;
 const LYRICS_OFFSET_LIMIT = 5000;
 
@@ -483,14 +484,14 @@ export function usePlayerController(): PlayerController {
     if (Object.values(elements).some((element) => !element)) return;
     drawCanvasFrame(elements, {
       lyrics,
-      currentTime: refs.audio.current?.currentTime ?? currentTime,
+      currentTime: refs.audio.current?.currentTime ?? 0,
       title,
       artist,
       recording: forceRecording,
       settingsOpen: syncPanelOpen,
       recordingSettings,
     });
-  }, [artist, currentTime, lyrics, recordingSettings, refs, syncPanelOpen, title]);
+  }, [artist, lyrics, recordingSettings, refs, syncPanelOpen, title]);
 
   const stopRecording = useCallback(async (): Promise<void> => {
     if (!recordingRef.current) return;
@@ -613,7 +614,10 @@ export function usePlayerController(): PlayerController {
     if (!isPlaying && !recording) return undefined;
     const audio = refs.audio.current;
     if (!audio) return undefined;
-    const interval = window.setInterval(() => setCurrentTime(audio.currentTime), recording ? 1000 / recordingSettings.fps : 100);
+    // Canvas reads the media clock directly while recording. React only needs
+    // a low-frequency update for the time readout and lyric index; rendering
+    // every 60th of a second would cause unnecessary layout churn.
+    const interval = window.setInterval(() => setCurrentTime(audio.currentTime), 100);
     return () => window.clearInterval(interval);
   }, [isPlaying, recording, recordingSettings.fps, refs.audio]);
 
@@ -628,9 +632,12 @@ export function usePlayerController(): PlayerController {
   }, [currentTime, refs.disc]);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => draw(false));
+    // Never switch a recording canvas back to preview dimensions while the
+    // recorder is active. That resize invalidates the capture stream and is
+    // perceived as a shake when the active lyric changes.
+    const frame = requestAnimationFrame(() => draw(recordingRef.current));
     return () => cancelAnimationFrame(frame);
-  }, [draw, assetRevision, activeLyricIndex, isPlaying]);
+  }, [draw, assetRevision, activeLyricIndex, isPlaying, currentTime, recording]);
 
   useEffect(() => {
     if (!recording) return undefined;
@@ -639,7 +646,7 @@ export function usePlayerController(): PlayerController {
   }, [draw, recording, recordingSettings.fps]);
 
   useEffect(() => {
-    const onResize = () => draw(false);
+    const onResize = () => draw(recordingRef.current);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, [draw]);

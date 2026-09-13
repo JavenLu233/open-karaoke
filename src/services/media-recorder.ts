@@ -10,7 +10,7 @@ export interface RecorderCapabilities {
 
 export type RecordingFormat = 'mp4' | 'webm';
 
-export const RECORDING_FPS = 24;
+export const RECORDING_FPS = 60;
 
 export const RECORDING_FPS_OPTIONS = [24, 30, 60] as const;
 
