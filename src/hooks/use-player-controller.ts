@@ -646,6 +646,17 @@ export function usePlayerController(): PlayerController {
   }, [draw, recording, recordingSettings.fps]);
 
   useEffect(() => {
+    if (!isPlaying || recording) return undefined;
+    let frameId = 0;
+    const renderPreview = () => {
+      draw(false);
+      frameId = requestAnimationFrame(renderPreview);
+    };
+    frameId = requestAnimationFrame(renderPreview);
+    return () => cancelAnimationFrame(frameId);
+  }, [draw, isPlaying, recording]);
+
+  useEffect(() => {
     const onResize = () => draw(recordingRef.current);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
