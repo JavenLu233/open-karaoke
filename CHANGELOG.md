@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- 开始 React + TypeScript 架构重构：入口、播放器舞台、素材面板、歌词视图和图标拆分为独立模块。
+- 使用 `usePlayerController` 统一管理播放、歌词同步、素材历史、录制和导出设置状态；Canvas 绘制独立为 `src/canvas/canvas-renderer.ts`。
 - 增加歌名与歌手名的自动识别和页面手动编辑。
 - 将歌名、歌手名纳入 Canvas 预览与视频录制画面。
 - 将录制帧率固定为 24 FPS，降低录制时的 CPU 压力。

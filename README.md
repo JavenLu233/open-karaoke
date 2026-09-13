@@ -1,6 +1,6 @@
 # Open Karaoke
 
-Open Karaoke 是一个基于 Vite + TypeScript 的本地卡拉 OK 视频制作工具。用户可以载入音频、封面和 LRC 歌词，实时预览唱片旋转、歌名、歌手名与歌词同步效果，并优先导出 MP4；浏览器不支持原生 MP4 时自动使用 ffmpeg.wasm 转码，同时保留 WebM 兜底下载。仓库内置公版 `Auld Lang Syne` 素材作为演示。
+Open Karaoke 是一个基于 Vite + React + TypeScript 的本地卡拉 OK 视频制作工具。用户可以载入音频、封面和 LRC 歌词，实时预览唱片旋转、歌名、歌手名与歌词同步效果，并优先导出 MP4；浏览器不支持原生 MP4 时自动使用 ffmpeg.wasm 转码，同时保留 WebM 兜底下载。仓库内置公版 `Auld Lang Syne` 素材作为演示。
 
 ![Open Karaoke cover](./public/open-karaoke-cover.png)
 
@@ -45,6 +45,10 @@ npm run dev
 
 打开终端提示的 `http://localhost:5173` 地址。录制功能依赖 `canvas.captureStream()`、`HTMLMediaElement.captureStream()` 和 `MediaRecorder`，建议使用最新版 Chrome 或 Edge。首次走 WebM 转 MP4 时，会在浏览器内加载 FFmpeg WebAssembly 核心并进行本地转码。
 
+### React 架构
+
+当前开发分支已完成第一阶段 React 重构：`index.html` 只保留 Vite 宿主，页面由 React 组件组合，播放与录制状态集中在 `usePlayerController`，Canvas 绘制和浏览器媒体能力分别封装在独立模块 / service 中。后续新增功能应优先放入对应组件、hook 或 service，避免重新形成单体页面类。
+
 ### 歌名与歌手名识别
 
 默认识别策略如下：
@@ -82,10 +86,19 @@ npm run build
 
 ```text
 src/
-├─ app.ts                    # 页面状态与事件编排
-├─ main.ts                   # 应用入口
+├─ main.tsx                  # React 应用入口
 ├─ styles.css                # 页面样式
 ├─ types.ts                  # 共享类型
+├─ components/
+│  ├─ App.tsx                # 页面骨架与组件组合
+│  ├─ AssetPanel.tsx         # 素材导入、歌曲信息、历史记录
+│  ├─ LyricsViewport.tsx     # 歌词列表与滚动
+│  ├─ PlayerStage.tsx        # Canvas 播放舞台、设置、播放器控件
+│  └─ icons.tsx              # 统一 SVG 图标组件
+├─ hooks/
+│  └─ use-player-controller.ts # 播放、素材、历史、录制状态与动作
+├─ canvas/
+│  └─ canvas-renderer.ts     # 页面预览与录制共用的 Canvas 绘制
 ├─ lib/
 │  ├─ lrc.ts                 # LRC 解析与当前行查找
 │  ├─ track-info.ts          # 歌名与歌手名识别
@@ -94,8 +107,6 @@ src/
 │  ├─ asset-history.ts       # 素材组历史记录与本地文件句柄
 │  ├─ media-recorder.ts      # Canvas 视频流与音频流合并录制
 │  └─ mp4-converter.ts       # WebM 回退转 MP4
-├─ ui/
-│  └─ lyrics-view.ts         # 歌词列表渲染与滚动
 └─ docs/
    └─ screenshots/
       ├─ player-preview.png  # 播放器页面截图
