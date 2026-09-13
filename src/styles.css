@@ -281,6 +281,15 @@ h1 em {
   pointer-events: none;
 }
 
+/* The encoded stream is always 16:9. Keep its preview surface proportional
+   while recording so the browser never stretches it into the wider stage. */
+.player-stage.recording-mode > #recordingCanvas {
+  inset: 50% 0 auto;
+  width: 100%;
+  height: auto;
+  transform: translateY(-50%);
+}
+
 .stage-grid {
   position: absolute;
   inset: 0;

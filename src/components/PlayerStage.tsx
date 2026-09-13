@@ -17,7 +17,7 @@ export function PlayerStage({ controller }: PlayerStageProps) {
 
   return (
     <section className="player-card" aria-label="播放器预览">
-      <div id="playerStage" ref={refs.stage} className="player-stage canvas-preview">
+      <div id="playerStage" ref={refs.stage} className={`player-stage canvas-preview${controller.recording ? ' recording-mode' : ''}`}>
         <canvas id="recordingCanvas" ref={refs.canvas} width="1920" height="1080" aria-hidden="true" />
         <div className="stage-grid" aria-hidden="true" />
         <div id="stageTopline" ref={refs.stageTopline} className="stage-topline">
